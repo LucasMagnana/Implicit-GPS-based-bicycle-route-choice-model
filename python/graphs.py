@@ -38,6 +38,6 @@ def distance_boxplot(tab_results, project_folder, dataset):
     ax1.set_title('')
     plt.xticks(rotation=45)
     plt.tight_layout(pad=5)
-    ax1.boxplot(tab_results, labels=["Computed", "Mapbox", "Logit", "Global", "Experience-based"])
+    ax1.boxplot(tab_results, labels=["Computed", "Mapbox", "Global", "Experience-based"])
     plt.yticks(np.arange(0, 1.1, step=0.1))
     plt.savefig("files/"+project_folder+"/images/boxplot_distance_"+dataset+".png")

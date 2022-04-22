@@ -15,9 +15,25 @@ from sklearn.neighbors import KDTree
 from datetime import datetime
 #import python.voxels as voxel
 
-token = "pk.eyJ1IjoibG1hZ25hbmEiLCJhIjoiY2s2N3hmNzgwMGNnODNqcGJ1N2l2ZXZpdiJ9.-aOxDLM8KbEQnJfXegtl7A"
-
 def check_file(file, content=None):
+    """
+    Check if a file exist at a given path. Creates all the directories in the path that do not exist.
+    Creates the file with a given content if asked.
+
+    Parameters
+    ----------
+    file : string
+        The path to the file.     
+    content : 
+        The content to put in the file if it does not exist. If the content is None, the file is not created.
+
+    Returns
+    -------
+    True
+        If the file existed before the execution of the function.
+    False
+        If the file did not existed before the execution, wether the function created it since or not.
+    """
     if(not(os.path.isfile(file))):
         if not os.path.exists(os.path.dirname(file)):
             os.makedirs(os.path.dirname(file))
@@ -32,7 +48,7 @@ def check_file(file, content=None):
     return True
         
 
-def request_map_matching(df_route):
+def request_map_matching(df_route, token):
     route = df_route.to_numpy()
     coord=""
     tab_requests = []
@@ -50,6 +66,21 @@ def request_map_matching(df_route):
 
 
 def clean_dataframe(df, tab_unreachable_routes=None):
+    """
+    Clean a dataframe, i.e. change the route numbers if some routes are missing (if the route numbers in the dataframe
+    are 0, 1, 3, 5 change it to 0, 1, 2, 3).
+
+    Parameters
+    ----------
+    df : pandas' DataFrame with columns=['lat', 'lon', 'route_num']
+        Dataframe to clean    
+    tab_unreachable_routes : list of list
+        Useful for bad gps points that cannot be accessed by osmnx, not relevant for monresovelo.
+    Returns
+    -------
+    df_final : pandas' DataFrame with columns=['lat', 'lon', 'route_num']
+        The clean dataframe.
+    """
     print("Cleaning dataframe...")
     nb_empty = 0
     df_final = pd.DataFrame(columns=df.columns)
@@ -90,7 +121,7 @@ def simplify_gps(infile, outfile, nb_routes=sys.maxsize, dim=2):
 
 
 
-def rd_compression(df, start, end, dim=2, eps=1e-4):
+def rd_compression(df, start, end, verbose=True, dim=2, eps=1e-4):
     """
     Compress a dataframe with douglas-peucker's algorithm.
     Parameters
@@ -108,7 +139,8 @@ def rd_compression(df, start, end, dim=2, eps=1e-4):
     """
     df_simplified = pd.DataFrame()
     for i in range(start, end):
-        print("\rSimplifying route {}/{} ".format(i, end), end="")
+        if(verbose):
+            print("\rSimplifying route {}/{} ".format(i, end-1), end="")
         route = df[df['route_num']==i].values
         if(len(route)>0):
             simplified = np.delete(route, range(dim, route.shape[1]), 1)
@@ -118,60 +150,25 @@ def rd_compression(df, start, end, dim=2, eps=1e-4):
             else:
                 df_temp = pd.DataFrame(simplified, columns=['lat', 'lon', 'time_elapsed'])
             df_temp["route_num"]=route[0][-1]
-            if(len(df_temp) == 0):
-                print(i, "bite")
             df_simplified = df_simplified.append(df_temp)
     return df_simplified
 
 
-def mapmatching(infile_str, outfile_str, nb_routes=sys.maxsize):
-    if(nb_routes > 0):
-        with open(infile_str,'rb') as infile:
-            df = pickle.load(infile)
-        check_file(outfile_str, pd.DataFrame(columns=['lat', 'lon', 'route_num']))
-        with open(outfile_str,'rb') as infile:
-            df_map_matched = pickle.load(infile)
 
-        if(df_map_matched.empty):
-            begin = 0
-        else:
-            begin = df_map_matched.iloc[-1]["route_num"]+1
-        for i in range(begin, min(begin+1+nb_routes, df.iloc[-1]["route_num"]+1)):
-            distance = 0
-            df_temp = df[df["route_num"]==i]
-            tab_requests = request_map_matching(df_temp)
-            tab_points = []
-            for req in tab_requests:
-                response = req.json()
-                if("tracepoints" in response):
-                    route = response["tracepoints"]
-                    for point in route:
-                        if(point != None):
-                            tab_points.append([point['location'][1], point['location'][0], i])
-                            distance += point['distance']
-            df_map_matched = df_map_matched.append(pd.DataFrame(tab_points, columns=["lat", "lon", "route_num"]))
-            with open(outfile_str, 'wb') as outfile:
-                pickle.dump(df_map_matched, outfile)
-
-
-def request_route(lat1, long1, lat2, long2, mode="cycling"):
+def request_route(lat1, long1, lat2, long2, token, mode="cycling"):
     coord = str(long1)+","+str(lat1)+";"+str(long2)+","+str(lat2)
     return requests.get("https://api.mapbox.com/directions/v5/mapbox/"+mode+"/"+coord, 
                             params={"alternatives": "true", "geometries": "geojson", "steps": "true", "access_token": token}) 
 
 
-def pathfinding_mapbox(infilestr, outfilestr, tabnumteststr=None, nb_routes=sys.maxsize):
+def pathfinding_mapbox(infilestr, outfilestr, token, nb_routes=sys.maxsize):
     if(nb_routes > 0):
         with open(infilestr,'rb') as infile:
             df_map_matched_simplified = pickle.load(infile)
         check_file(outfilestr, pd.DataFrame(columns=['lat', 'lon', 'route_num']))
         with open(outfilestr,'rb') as infile:
             df_pathfinding = pickle.load(infile)
-        if(tabnumteststr != None):
-            with open(tabnumteststr,'rb') as infile:
-                tab_num_test = pickle.load(infile)
-        else:
-            tab_num_test = None
+        tab_num_test = None
 
         if(len(df_pathfinding) == 0):
             last_route_pathfound = 0
@@ -181,17 +178,17 @@ def pathfinding_mapbox(infilestr, outfilestr, tabnumteststr=None, nb_routes=sys.
         nb_routes = min(df_map_matched_simplified.iloc[-1]["route_num"] - last_route_pathfound, nb_routes)
         for i in range(last_route_pathfound, last_route_pathfound+nb_routes+1):
             if(tab_num_test == None or i in tab_num_test):
-                print("\rFinding the shortest path for route {}/{} with Mapbox.".format(i, last_route_pathfound+nb_routes), end="")
+                print("\rFinding the shortest path for route {}/{} using Mapbox.".format(i, last_route_pathfound+nb_routes), end="")
                 df_temp = df_map_matched_simplified[df_map_matched_simplified["route_num"]==i]
                 d_point = [df_temp.iloc[0]["lat"], df_temp.iloc[0]["lon"]]
                 f_point = [df_temp.iloc[-1]["lat"], df_temp.iloc[-1]["lon"]]
-                df_temp = pathfind_route_mapbox(d_point, f_point, df_pathfinding, i)
+                df_temp = pathfind_route_mapbox(d_point, f_point, token, df_pathfinding, i)
                 df_pathfinding = df_pathfinding.append(df_temp)
                 with open(outfilestr, 'wb') as outfile:
                     pickle.dump(df_pathfinding, outfile)
 
 
-def pathfind_route_mapbox(d_point, f_point, df_pathfinding=pd.DataFrame(), num_route=1):
+def pathfind_route_mapbox(d_point, f_point, token, df_pathfinding=pd.DataFrame(), num_route=1):
     save_route = True
     req = request_route(d_point[0], d_point[1], f_point[0], f_point[1]) #mapbox request to find a route between the stations
     response = req.json()
@@ -317,97 +314,3 @@ def dataframe_to_array(df, n=2):
     for i in range(len(tab)):
         tab[i] = tab[i][:n]
     return tab
-
-
-def harmonize_route(v1, v2):
-    diff = max(len(v1), len(v2)) - min(len(v1), len(v2))
-    if(len(v1) > len(v2)):
-        shorter_route = v2
-    else:
-        shorter_route = v1
-    for i in range(0, diff*2, 2):
-        indice = i%(len(shorter_route)-1)
-        new_point = [(shorter_route[indice][0]+shorter_route[indice+1][0])/2,
-                     (shorter_route[indice][1]+shorter_route[indice+1][1])/2]
-        shorter_route.insert(indice+1, new_point)
-
-
-def normalize_route(v1, n):
-    diff = n-len(v1)
-    if(diff < 0):
-        print("Route is too long !")
-        return
-    for i in range(0, diff*2, 2):
-        indice = i%(len(v1)-1)
-        new_point = [(v1[indice][0]+v1[indice+1][0])/2,
-                     (v1[indice][1]+v1[indice+1][1])/2]
-        v1.insert(indice+1, new_point)
-
-
-def add_time_elapsed(file, nb_routes=1):
-    if(nb_routes > 0):
-        with open(file,'rb') as infile:
-            df = pickle.load(infile)
-        if("time_elapsed" not in df.columns):
-            print("Warning : Adding time elapsed...")
-            tab_te = compute_time_elapsed(df)
-            if(len(tab_te)==len(df)):
-                df.insert(loc=2, column='time_elapsed', value=tab_te)
-                with open(file,'wb') as outfile:
-                    pickle.dump(df, outfile)
-            else:
-                print("Dimension error.")
-
-    
-def compute_time_elapsed(df):
-    tab_te = []
-    for i in range(df.iloc[-1]["route_num"]+1):
-        df_temp = df[df["route_num"]==i]
-        tab_te.append(0)
-        last_line = pd.DataFrame()
-        for line in df_temp.iloc:
-            if(last_line.empty):
-                last_line = line
-            else:
-                time = pd.Timedelta(line["time"] - last_line["time"]).total_seconds()
-                tab_te.append(tab_te[-1]+time)
-                last_line = line
-    return tab_te
-
-
-
-
-def OD_dataset_creation(infile_str, outfile_str, unreachableroutesfile_str, nb_routes=sys.maxsize):
-    if(nb_routes > 0):
-        with open(infile_str,'rb') as infile:
-            df_simplified = pickle.load(infile)
-
-
-        check_file(outfile_str, pd.DataFrame(columns=['lat', 'lon', 'route_num']))
-        with open(outfile_str,'rb') as infile:
-            df_pathfinding = pickle.load(infile)
-            
-        check_file(unreachableroutesfile_str, [[],[]])
-        with open(unreachableroutesfile_str,'rb') as infile:
-            tab_unreachable_routes = pickle.load(infile)
-
-        if(len(df_pathfinding) == 0):
-            last_route_pathfound = 0
-        else:
-            last_route_pathfound = df_pathfinding.iloc[-1]["route_num"]+1
-
-        nb_routes = min(df_simplified.iloc[-1]["route_num"] - last_route_pathfound, nb_routes)
-        print(last_route_pathfound, last_route_pathfound+nb_routes+1)
-        for i in range(last_route_pathfound, last_route_pathfound+nb_routes+1):
-            df_temp = df_simplified[df_simplified["route_num"]==i]
-            d_point = [df_temp.iloc[0]["lat"], df_temp.iloc[0]["lon"]]
-            if(i in tab_unreachable_routes[0]):
-                d_point = [df_temp.iloc[1]["lat"], df_temp.iloc[1]["lon"]]
-            f_point = [df_temp.iloc[-1]["lat"], df_temp.iloc[-1]["lon"]]
-            if(i in tab_unreachable_routes[1]):
-                f_point = [df_temp.iloc[-2]["lat"], df_temp.iloc[-2]["lon"]]
-                
-            route_coord = [[d_point[0], d_point[1], i], [f_point[0], f_point[1], i]]
-            df_pathfinding = df_pathfinding.append(pd.DataFrame(route_coord, columns=["lat", "lon", "route_num"]))
-            with open(outfile_str, 'wb') as outfile:
-                pickle.dump(df_pathfinding, outfile)

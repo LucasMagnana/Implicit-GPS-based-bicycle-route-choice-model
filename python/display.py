@@ -6,11 +6,8 @@ from folium.plugins import HeatMap
 
 import python.voxels as voxel
 
-token = "pk.eyJ1IjoibG1hZ25hbmEiLCJhIjoiY2s2N3hmNzgwMGNnODNqcGJ1N2l2ZXZpdiJ9.-aOxDLM8KbEQnJfXegtl7A"
-px.set_mapbox_access_token(token)
 
-
-def display_mapbox(dfdisplay, n=75, line_group="route_num", color=None, filename=None):
+def display_mapbox(dfdisplay, token, n=75, line_group="route_num", color=None, filename=None):
     """
     Display a dataframe of gps points on a mapbox map.
     Parameters

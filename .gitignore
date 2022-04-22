@@ -1,5 +1,4 @@
 
-data/
 python/__pycache__/
 .vscode/
 cache/
@@ -12,6 +11,7 @@ maps/
 *.ox
 *.dict
 *.tab
+*.json
 
 !osmnx_pathfinding_simplified.df
 !observations_matched_simplified.df
@@ -20,5 +20,5 @@ maps/
 !num_test.tab
 !loss.tab
 !predict.tab
-!mapbox_pathfinding.df
+!mapbox_pathfinding_simplified.df
 !unreachable_routes.tab

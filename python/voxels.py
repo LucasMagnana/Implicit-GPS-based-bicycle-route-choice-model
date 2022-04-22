@@ -139,44 +139,7 @@ def voxel_convolution(vox, dict_vox, dict_vox_used, num_vox, lat_diff, lon_diff)
         return [vox_adj, dict_vox[key_adj], key_adj]
     return []
         
-    
-def is_voxel_neighbour(v1, v2):
-    tab_vox_adj = []
-    tab_vox_adj.append(voxel_convolution(vox_int, dict_vox, {}, 0, -1, 0))
-    tab_vox_adj.append(voxel_convolution(vox_int, dict_vox, {}, 0, 1, 0))
-    tab_vox_adj.append(voxel_convolution(vox_int, dict_vox, {}, 0, 0, 1))
-    tab_vox_adj.append(voxel_convolution(vox_int, dict_vox, {}, 0, 0, -1))
-    tab_vox_adj.append(voxel_convolution(vox_int, dict_vox, {}, 0, -1, -1))
-    tab_vox_adj.append(voxel_convolution(vox_int, dict_vox, {}, 0, -1, 1))
-    tab_vox_adj.append(voxel_convolution(vox_int, dict_vox, {}, 0, 1, -1))
-    tab_vox_adj.append(voxel_convolution(vox_int, dict_vox, {}, 0, 1, 1))
-    for vox_adj in tab_vox_adj:
-        if(len(vox_adj)>0):
-            if(next_vox_int == vox_adj[0]):
-                vox_int = next_vox_int
-                break
 
-
-def differentiate_voxels_sequences(tab_voxels, dict_vox):
-    seq=0
-    tab_voxel_sequence = []
-    tab_voxel_sequence.append([])
-    vox_int = find_voxel_int([tab_voxels[0][0], tab_voxels[0][1]])
-    for vox in range(0, len(tab_voxels)-4, 4):
-        tab_voxel_sequence[seq].append(vox_int)
-        next_vox_int = find_voxel_int([tab_voxels[vox+4][0], tab_voxels[vox+4][1]])
-       
-        if(vox_int != next_vox_int):
-            for i in range(len(next_vox_int)):
-                for j in range(len(next_vox)):
-                    a=0 #TODO
-            
-            
-            tab_voxel_sequence.append([])
-            seq += 1
-            vox_int = next_vox_int
-    tab_voxel_sequence[seq].append(vox_int)
-    return tab_voxel_sequence
 
 
 
@@ -192,16 +155,25 @@ def generate_voxels(df, starting, ending, bikepath=False):
         
     Returns
     -------
-    dict of voxels
-        Keys of this dict are strings containing the position of voxels' low left points transformed to int
+    tab_routes_voxels : list
+        List of X lists, X being the number of routes in df. Each list contains all voxels through which a route directly pass. The voxels 
+        are stored the same way they are identified in dict_vox (see the keys of dict_vox below).
+    tab_routes_voxels_global : list
+        Same as tab_routes_voxels but each list contains in addition the neighbors of the voxels through which the route directly pass (see our paper
+        for more information).
+    dict_vox : dict
+        Dictionary of all voxel created. Keys of this dict are strings containing the position of voxels' low left points transformed into int
         and separated by a ';'.
-        Values of this dict are lists containing the number of all routes that pass through the voxel.
+        Values of this dict are voxels. Voxels are dictionaries containing several lists and a cyclability coefficient. The 'tab_routes_real' list
+        contains the number of all routes that pass directly through the voxel, tab_routes_extended contains the number of the routes that pass
+        through a neighbouring voxel (see our paper for more information), 'tab_routes_starting' and 'tab_routes_finishing' contains respectivly the number
+        the routes starting and ending in the voxel. For more information about the calculation of the cyclability coefficient, see our paper.
     """
     
     dict_vox = {}
     tab_routes_voxels = []
     for route_num in range(starting, ending+1):
-        print("\rCalculating voxels for route {}/{}.".format(route_num, ending), end="")
+        #print("\rCalculating voxels for route {}/{}.".format(route_num, ending), end="")
         tab_routes_voxels.append([])
         route = df[df["route_num"]==route_num]
         points = route.values.tolist()
@@ -357,7 +329,7 @@ def generate_voxels(df, starting, ending, bikepath=False):
         for key in dict_vox:
             dict_vox[key]["cyclability_coeff"] = (len(dict_vox[key]["tab_routes_real"]) + len(dict_vox[key]["tab_routes_extended"]))/nb_max_routes
 
-    print()
+    #print()
     return tab_routes_voxels, tab_routes_voxels_global, dict_vox
 
 
