@@ -1,10 +1,3 @@
-from dipy.segment.metric import Metric, ResampleFeature
-from dipy.segment.clustering import QuickBundles
-import python.voxels as voxel
-import pickle
-import os
-
-
 def get_distance_voxels(num_route1, num_route2, tab_routes_voxels):
     """
     Get the distance between 2 routes using voxels (see our paper for more information).

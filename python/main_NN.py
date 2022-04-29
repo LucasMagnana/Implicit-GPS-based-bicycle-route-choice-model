@@ -89,17 +89,17 @@ def main(args):
     '''network.load_state_dict(torch.load(args.path+"files/"+project_folder+"/neural_networks/saved/network_temp.pt"))
     network.eval()'''
 
-    tab_loss, tab_predict = learning.train(padded_data, tab_num_train, tab_num_test, tab_clusters, loss, optimizer, network, size_data, args.num_samples)
+    tab_loss, tab_predict = train_NN.train(padded_data, tab_num_train, tab_num_test, tab_clusters, loss, optimizer, network, size_data, args.num_samples)
 
 
     '''g_predict = learning.test(df_test, None, tab_clusters, size_data, loss)
     print("Random:", g_predict*100, "%")'''
     
-    g_predict, _ = learning.test(padded_data, tab_num_train, network, tab_clusters, size_data)
+    g_predict, _ = train_NN.test(padded_data, tab_num_train, network, tab_clusters, size_data)
     print("Good train predict:", g_predict*100, "%")
     
     if(args.percentage_test > 0):
-        g_predict, _ = learning.test(padded_data, tab_num_test, network, tab_clusters, size_data)
+        g_predict, _ = train_NN.test(padded_data, tab_num_test, network, tab_clusters, size_data)
         print("Good test predict:", g_predict*100, "%")
     
     if(g_predict > 0.1):

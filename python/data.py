@@ -65,7 +65,7 @@ def request_map_matching(df_route, token):
     return tab_requests
 
 
-def clean_dataframe(df, tab_unreachable_routes=None):
+def clean_dataframe(df):
     """
     Clean a dataframe, i.e. change the route numbers if some routes are missing (if the route numbers in the dataframe
     are 0, 1, 3, 5 change it to 0, 1, 2, 3).
@@ -74,8 +74,6 @@ def clean_dataframe(df, tab_unreachable_routes=None):
     ----------
     df : pandas' DataFrame with columns=['lat', 'lon', 'route_num']
         Dataframe to clean    
-    tab_unreachable_routes : list of list
-        Useful for bad gps points that cannot be accessed by osmnx, not relevant for monresovelo.
     Returns
     -------
     df_final : pandas' DataFrame with columns=['lat', 'lon', 'route_num']
@@ -91,14 +89,6 @@ def clean_dataframe(df, tab_unreachable_routes=None):
         else:
             df_temp["route_num"] = i-nb_empty
             df_final = df_final.append(df_temp)
-            if(tab_unreachable_routes != None):
-                if(i in tab_unreachable_routes[0]):
-                    tab_unreachable_routes[0].remove(i)
-                    tab_unreachable_routes[0].append(i-nb_empty)
-                if(i in tab_unreachable_routes[1]):
-                    tab_unreachable_routes[1].remove(i)
-                    tab_unreachable_routes[1].append(i-nb_empty)
-
     return df_final
 
 
@@ -190,7 +180,7 @@ def pathfinding_mapbox(infilestr, outfilestr, token, nb_routes=sys.maxsize):
 
 def pathfind_route_mapbox(d_point, f_point, token, df_pathfinding=pd.DataFrame(), num_route=1):
     save_route = True
-    req = request_route(d_point[0], d_point[1], f_point[0], f_point[1]) #mapbox request to find a route between the stations
+    req = request_route(d_point[0], d_point[1], f_point[0], f_point[1], token) #mapbox request to find a route between the stations
     response = req.json()
     if(response['code']=='Ok'): #if a route have been found
         steps = response['routes'][0]['legs'][0]['steps'] #we browse all the steps of the route
@@ -208,7 +198,7 @@ def pathfind_route_mapbox(d_point, f_point, token, df_pathfinding=pd.DataFrame()
 
 
 
-def pathfinding_osmnx(infile_str, outfile_str, graphfile_str, unreachableroutesfile_str, nb_routes=sys.maxsize):
+def pathfinding_osmnx(infile_str, outfile_str, graphfile_str, nb_routes=sys.maxsize):
     if(nb_routes > 0):
         with open(infile_str,'rb') as infile:
             df_simplified = pickle.load(infile)
@@ -221,10 +211,6 @@ def pathfinding_osmnx(infile_str, outfile_str, graphfile_str, unreachableroutesf
         check_file(outfile_str, pd.DataFrame(columns=['lat', 'lon', 'route_num']))
         with open(outfile_str,'rb') as infile:
             df_pathfinding = pickle.load(infile)
-            
-        check_file(unreachableroutesfile_str, [[],[]])
-        with open(unreachableroutesfile_str,'rb') as infile:
-            tab_unreachable_routes = pickle.load(infile)
 
         if(len(df_pathfinding) == 0):
             last_route_pathfound = 0
@@ -235,12 +221,8 @@ def pathfinding_osmnx(infile_str, outfile_str, graphfile_str, unreachableroutesf
         for i in range(last_route_pathfound, last_route_pathfound+nb_routes+1):
             print("\rFinding the shortest path for route {}/{} with OSMNX.".format(i, last_route_pathfound+nb_routes), end="")
             df_temp = df_simplified[df_simplified["route_num"]==i]
-            d_point = [df_temp.iloc[0]["lat"], df_temp.iloc[0]["lon"]]
-            if(i in tab_unreachable_routes[0]):
-                d_point = [df_temp.iloc[1]["lat"], df_temp.iloc[1]["lon"]]
-            f_point = [df_temp.iloc[-1]["lat"], df_temp.iloc[-1]["lon"]]
-            if(i in tab_unreachable_routes[1]):
-                f_point = [df_temp.iloc[-2]["lat"], df_temp.iloc[-2]["lon"]]
+            d_point = df_temp.iloc[0].tolist()[:2]
+            f_point = df_temp.iloc[-1].tolist()[:2]
             route = pathfind_route_osmnx(d_point, f_point, tree, G, nodes)
             route_coord = [[G.nodes[x]["y"], G.nodes[x]["x"]] for x in route]
             route_coord = [x + [i] for x in route_coord]

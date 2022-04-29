@@ -8,10 +8,6 @@ import torch.nn as nn
 from math import sin, cos, sqrt, atan2, radians, exp
 import copy
 from sklearn.cluster import *
-from sklearn.decomposition import PCA
-from sklearn.metrics import silhouette_score
-from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import MinMaxScaler
 import random
 import numpy as np
 import osmnx as ox
@@ -20,6 +16,7 @@ from sklearn.neighbors import KDTree
 import os
 import argparse
 import datetime
+import warnings
 
 
 import python.data as data
@@ -29,8 +26,10 @@ import python.metric as metric
 import python.clustering as cl
 import python.RNN as RNN
 import python.validation as validation
-import python.graphs as graphs
-import python.MultiPass as MP
+import python.graphs as graphs  
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
+pd.options.mode.chained_assignment = None
 
 
 
@@ -60,8 +59,11 @@ def create_dict_modif(G, dict_cluster, df_simplified):
     """
     dict_modif = {}
     dict_modif_global = {0:{}}
+    print("Creating the dictionaries containing the road graph's modifications, this might take a while depending on the road graph size but this operation\
+        only needs to be done once.")
     print("start:", datetime.datetime.now().time())
     dict_dict_voxels_cluster = {}
+    num_nodes_processed = 0
     for cl in dict_cluster:
         if(cl > -1):
             df_cluster = pd.DataFrame(columns=["lat", "lon", "route_num"])
@@ -80,6 +82,7 @@ def create_dict_modif(G, dict_cluster, df_simplified):
     _, _, dict_voxels_cluster_global = voxel.generate_voxels(df_cluster_global, df_cluster_global.iloc[0]["route_num"], df_cluster_global.iloc[-1]["route_num"])
 
     for v in G:
+        print("\rNode {}/{}.".format(num_nodes_processed, G.number_of_nodes()), end="")
         for v_n in G[v]:
             df_line = pd.DataFrame([[G.nodes[v]['y'], G.nodes[v]['x'], 0], [G.nodes[v_n]['y'], G.nodes[v_n]['x'], 0]], columns=["lat", "lon", "route_num"])
             tab_voxels, _, _ = voxel.generate_voxels(df_line, 0, 0)
@@ -106,6 +109,7 @@ def create_dict_modif(G, dict_cluster, df_simplified):
             if(nb_vox_global_found > 0):
                 tot_coeff_global /= nb_vox_global_found
                 dict_modif_global[0][str(v)+";"+str(v_n)] = tot_coeff
+        num_nodes_processed += 1
 
     print("end:", datetime.datetime.now().time())
     return dict_modif, dict_modif_global
@@ -284,10 +288,13 @@ def main_clusters_NN(dict_tab_route_voxels, df_computed, global_metric, deviatio
     tab_diff_coeff = [[], []]
 
     print("LSTM")
-
+    tab_num_routes.sort()
     for i, num_route in enumerate(tab_num_routes): #len(tab_clusters)):
-
         print("\rRoute {}/{}".format(i, len(tab_num_routes)-1), end="")
+
+        print()
+        print(num_route)
+        print(df_computed[df_computed["route_num"]==num_route])
 
         good_predict = False
         df_route_tested = df_simplified[df_simplified["route_num"]==num_route]
@@ -297,7 +304,6 @@ def main_clusters_NN(dict_tab_route_voxels, df_computed, global_metric, deviatio
 
         cl, nb_new_cluster = validation.find_cluster(dict_tab_route_voxels[num_route], network, param.voxels_frequency, dict_voxels_clustered, 
                                     kmeans, df_route_tested)
-        #print(cl, tab_clusters[num_route])
         if(cl == tab_clusters[num_route]):
             #print("good predict")
             nb_good_predict += 1
@@ -510,11 +516,6 @@ if __name__ == "__main__":
     with open("./files/"+project_folder+"/clustering/dbscan_observations.tab",'rb') as infile:
         tab_clusters = pickle.load(infile)
     dict_cluster = cl.tab_clusters_to_dict(tab_clusters)
-
-
-    data.check_file("files/"+project_folder+"/data_processed/unreachable_routes.tab", [[],[]])
-    with open("files/"+project_folder+"/data_processed/unreachable_routes.tab",'rb') as infile:
-        tab_unreachable_routes = pickle.load(infile) 
         
         
 
@@ -537,8 +538,6 @@ if __name__ == "__main__":
     with open("files/"+project_folder+"/city_graphs/graph_modifications_global.dict",'rb') as infile:
         dict_modif_global = pickle.load(infile)
             
-
-        
                 
     with open("files/"+project_folder+"/city_graphs/graph_modifications.dict",'rb') as infile:
         dict_modif = pickle.load(infile)
@@ -592,23 +591,26 @@ if __name__ == "__main__":
     df_computed = pd.DataFrame(columns=["lat", "lon", "route_num"])
 
     for i, num_route in enumerate(tab_num_routes):
-
         print("\rRoute {}/{}".format(i, len(tab_num_routes)-1), end="")
 
         df_route_tested = df_simplified[df_simplified["route_num"]==num_route]
-        d_point, f_point = choose_route_endpoints(df_route_tested, num_route, deviation)
+        d_point = df_route_tested.iloc[0].tolist()[:2]
+        f_point = df_route_tested.iloc[-1].tolist()[:2]
+        print(d_point, f_point)
         df_route, tab_route_voxels, coeff_simplified = create_path_compute_distance(d_point, f_point, df_route_tested, tree, G_base, nodes, global_metric)
+        if(num_route == 1):
+            print(df_route_tested)
+            print(df_route)
         tab_coeff_simplified.append(min(coeff_simplified))
         dict_tab_route_voxels[num_route] = tab_route_voxels
         df_route["route_num"]= num_route
         df_computed = df_computed.append(df_route)
-
-    print() 
+    print()     
     print("Mean shortest path distance:", sum(tab_coeff_simplified)/len(tab_coeff_simplified)*100, "%")
     print("===============================")
         
         
-    tab_mean_results_base.append(sum(tab_coeff_simplified)/len(tab_coeff_simplified))
+    ''''tab_mean_results_base.append(sum(tab_coeff_simplified)/len(tab_coeff_simplified))
     tab_boxplot.append(tab_coeff_simplified)
 
     tab_coeff_modified_mapbox = main_mapbox(global_metric)
@@ -628,7 +630,7 @@ if __name__ == "__main__":
     tab_coeff_modified_oracle = main_clusters_full_predict(global_metric, deviation)
 
     tab_mean_results_base.append(sum(tab_coeff_modified_oracle)/len(tab_coeff_modified_oracle))
-    tab_boxplot.append(tab_coeff_modified_oracle)
+    tab_boxplot.append(tab_coeff_modified_oracle)'''
 
 
     tab_coeff_modified_NN = main_clusters_NN(dict_tab_route_voxels, df_computed, global_metric, deviation)

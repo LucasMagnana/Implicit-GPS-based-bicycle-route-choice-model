@@ -6,7 +6,6 @@ import data as data
 import numpy as np
 import matplotlib.pyplot as plt
 import random
-from NN import *
 from RNN import *
 import datetime
 
