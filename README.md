@@ -3,13 +3,19 @@
 Code used for our paper [Implicit GPS-based bicycle route choice model using clustering methods and a LSTM network](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0264196).
 
 
-## Dependencies
+## Dependencies and virtual environment
 
-We recommend the use of a virtual python environment. Use the package manager [pip](https://pypi.org/project/pip/) to install the dependencies.
+We recommend the use of a virtual python environment. The notebooks are configured to work with a virtual environment named `repo_paper`. Use the package manager [pip](https://pypi.org/project/pip/) to install the dependencies.
 
 ```bash
+pip install pipenv
+pipenv install ipykernel
+pipenv shell
+python -m ipykernel install --user --name=repo_paper
 pip install -r requirements.txt
+jupyter notebook
 ```
+In your notebook, Kernel -> Change Kernel. `repo_paper` should be an option.
 
 ## Usage
 
