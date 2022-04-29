@@ -58,7 +58,7 @@ def main(args):
     tab_num_train = [x for x in tab_num_train if x not in tab_num_test]
     tab_num_train = [x for x in tab_num_train if x not in tab_num_noise]
           
-    print("test:", len(tab_num_test), "noise:", len(tab_num_noise), "train:", len(tab_num_train))
+    print(len(tab_num_train), "routes in the training set,", len(tab_num_test), "routes in the testing set,", len(tab_num_noise), "routes not used (DBSCAN noise).")
     for i in range(len(tab_routes_voxels)):
         nb_vox = 0
         tab_routes_voxels_int.append([])
@@ -136,11 +136,11 @@ if __name__ == "__main__":
     parse.add_argument('--voxels-frequency', type=int, default=4, help="frequency of voxels to send to the network")
     parse.add_argument('--num-layers', type=int, default=2, help="number of layers in the LSTM network")
     parse.add_argument('--hidden-size', type=int, default=256, help="size of the hidden layer(s) in the network")
-    parse.add_argument('--num-samples', type=int, default=75000, help="number of data (chosen randomly) to send to the network")
+    parse.add_argument('--num-samples', type=int, default=7500, help="number of data (chosen randomly) to send to the network")
     parse.add_argument('--lr', type=float, default=5e-4, help='learning rate of the algorithm')
-    parse.add_argument('--percentage-test', type=int, default=0, help='percentage of data to use as testing')
+    parse.add_argument('--percentage-test', type=int, default=20, help='percentage of data to use as testing')
     parse.add_argument('--bidirectional', type=bool, default=False, help='change the LSTM in a bidirectional one')
     parse.add_argument('--dropout', type=float, default=0, help='set the dropout layers parameter')
-    parse.add_argument('--project-folder', type=str, default="veleval", help='folder of the project')
+    parse.add_argument('--project-folder', type=str, default="monresovelo", help='folder of the project')
     
     main(parse.parse_args())

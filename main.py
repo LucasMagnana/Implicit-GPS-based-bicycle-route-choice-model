@@ -59,8 +59,8 @@ def create_dict_modif(G, dict_cluster, df_simplified):
     """
     dict_modif = {}
     dict_modif_global = {0:{}}
-    print("Creating the dictionaries containing the road graph's modifications, this might take a while depending on the road graph size but this operation\
-        only needs to be done once.")
+    print("Creating the dictionaries containing the road graph's modifications, this might take a while depending on the road graph size but \
+    this operation only needs to be done once.")
     print("start:", datetime.datetime.now().time())
     dict_dict_voxels_cluster = {}
     num_nodes_processed = 0
@@ -74,13 +74,12 @@ def create_dict_modif(G, dict_cluster, df_simplified):
             _, _, dict_voxels_cluster = voxel.generate_voxels(df_cluster, df_cluster.iloc[0]["route_num"], df_cluster.iloc[-1]["route_num"])
             dict_dict_voxels_cluster[cl] = dict_voxels_cluster
 
-    df_cluster_global = {}
+    df_cluster_global = pd.DataFrame(columns=["lat", "lon", "route_num"])
     for num_route in range(len(tab_clusters)+1):
         df_temp = df_simplified[df_simplified["route_num"]==num_route]
         df_temp["route_num"] = num_route
-        df_cluster_global = df_cluster.append(df_temp)
+        df_cluster_global = df_cluster_global.append(df_temp)
     _, _, dict_voxels_cluster_global = voxel.generate_voxels(df_cluster_global, df_cluster_global.iloc[0]["route_num"], df_cluster_global.iloc[-1]["route_num"])
-
     for v in G:
         print("\rNode {}/{}.".format(num_nodes_processed, G.number_of_nodes()), end="")
         for v_n in G[v]:
@@ -108,7 +107,7 @@ def create_dict_modif(G, dict_cluster, df_simplified):
                     tot_coeff_global += dict_voxels_cluster_global[vox]["cyclability_coeff"]
             if(nb_vox_global_found > 0):
                 tot_coeff_global /= nb_vox_global_found
-                dict_modif_global[0][str(v)+";"+str(v_n)] = tot_coeff
+                dict_modif_global[0][str(v)+";"+str(v_n)] = tot_coeff_global
         num_nodes_processed += 1
 
     print("end:", datetime.datetime.now().time())
@@ -158,6 +157,7 @@ def modify_network_graph(cl, dict_modif, G, coeff_diminution = 1):
         if(v in G):
             G[v][v_n][0]['length'] -= G[v][v_n][0]['length']*dict_modif[cl][key] #min(1, exp(dict_modif[cl][key])-1)
         else: 
+            print("ERROR IN GRAPH MODIFICATION!")
             return False
     return True
 
@@ -172,25 +172,7 @@ def cancel_network_graph_modifications(cl, dict_modif, G, G_base):
             G[v][v_n][0]['length'] = G_base[v][v_n][0]['length']
         else:
             break
-        
-def choose_route_endpoints(df_route, num_route, deviation):
-        global tab_unreachable_routes
-        d_point = [df_route.iloc[0]["lat"], df_route.iloc[0]["lon"]]
-        if(num_route in tab_unreachable_routes[0]):
-            d_point = [df_route.iloc[1]["lat"], df_route.iloc[1]["lon"]]
-        f_point = [df_route.iloc[-1]["lat"], df_route.iloc[-1]["lon"]]
-        if(num_route in tab_unreachable_routes[1]):
-            f_point = [df_route.iloc[-2]["lat"], df_route.iloc[-2]["lon"]]
-        rand = random.uniform(-deviation, deviation)
-        d_point[0] += rand
-        rand = random.uniform(-deviation, deviation)
-        d_point[1] += rand
-        rand = random.uniform(-deviation, deviation)
-        f_point[0] += rand
-        rand = random.uniform(-deviation, deviation)
-        f_point[1] += rand
-        
-        return d_point, f_point
+
     
     
             
@@ -214,7 +196,8 @@ def main_global(global_metric, deviation):
 
         df_route_tested = df_simplified[df_simplified["route_num"]==num_route]
 
-        d_point, f_point = choose_route_endpoints(df_route_tested, num_route, deviation)
+        d_point = df_route_tested.iloc[0].tolist()[:2]
+        f_point = df_route_tested.iloc[-1].tolist()[:2]
 
         df_route, tab_route_voxels, coeff_modified = create_path_compute_distance(d_point, f_point, df_route_tested, tree, G, nodes, global_metric)
 
@@ -240,7 +223,7 @@ def main_clusters(global_metric, deviation):
 
             modify_network_graph(key, dict_modif, G)
 
-    print("CLUSTERS ONLY:")
+    print("ORACLE :")
     
     for i, num_route in enumerate(tab_num_routes):
 
@@ -249,7 +232,8 @@ def main_clusters(global_metric, deviation):
         df_route_tested = df_simplified[df_simplified["route_num"]==num_route]
         
         
-        d_point, f_point = choose_route_endpoints(df_route_tested, num_route, deviation)
+        d_point = df_route_tested.iloc[0].tolist()[:2]
+        f_point = df_route_tested.iloc[-1].tolist()[:2]
 
         df_route, tab_route_voxels, coeff_modified = create_path_compute_distance(d_point, f_point, df_route_tested, tree, G, nodes, global_metric)
 
@@ -287,19 +271,16 @@ def main_clusters_NN(dict_tab_route_voxels, df_computed, global_metric, deviatio
 
     tab_diff_coeff = [[], []]
 
-    print("LSTM")
+    print("LSTM :")
     tab_num_routes.sort()
     for i, num_route in enumerate(tab_num_routes): #len(tab_clusters)):
         print("\rRoute {}/{}".format(i, len(tab_num_routes)-1), end="")
 
-        print()
-        print(num_route)
-        print(df_computed[df_computed["route_num"]==num_route])
-
         good_predict = False
         df_route_tested = df_simplified[df_simplified["route_num"]==num_route]
         
-        d_point, f_point = choose_route_endpoints(df_route_tested, num_route, deviation)
+        d_point = df_route_tested.iloc[0].tolist()[:2]
+        f_point = df_route_tested.iloc[-1].tolist()[:2]
 
 
         cl, nb_new_cluster = validation.find_cluster(dict_tab_route_voxels[num_route], network, param.voxels_frequency, dict_voxels_clustered, 
@@ -355,7 +336,7 @@ def main_clusters_NN(dict_tab_route_voxels, df_computed, global_metric, deviatio
         print("Mean modified path distance:", sum(tab_coeff_modified[1])/len(tab_coeff_modified[1])*100, "%")
         print("===============================")
         
-    print("Good predict:", len(tab_coeff_modified[0])/(len(tab_coeff_modified[0])+len(tab_coeff_modified[1]))*100, "%):")
+    print("Accuracy:", len(tab_coeff_modified[0])/(len(tab_coeff_modified[0])+len(tab_coeff_modified[1]))*100, "%")
     print("Mean modified path distance:", sum(sum(tab_coeff_modified,[]))/sum(len(row) for row in tab_coeff_modified)*100, "%")
 
 
@@ -379,7 +360,8 @@ def main_clusters_full_predict(global_metric, deviation):
         df_route_tested = df_simplified[df_simplified["route_num"]==num_route]
         df_mapbox = df_mapbox_routes_test[df_mapbox_routes_test["route_num"]==num_route]
         
-        d_point, f_point = choose_route_endpoints(df_route_tested, num_route, deviation)
+        d_point = df_route_tested.iloc[0].tolist()[:2]
+        f_point = df_route_tested.iloc[-1].tolist()[:2]
 
         modify_network_graph(tab_clusters[num_route], dict_modif, G)
 
@@ -487,7 +469,7 @@ if __name__ == "__main__":
 
     pd.options.mode.chained_assignment = None
 
-    with open("files/"+project_folder+"/data_processed/mapbox_pathfinding.df",'rb') as infile:
+    with open("files/"+project_folder+"/data_processed/mapbox_pathfinding_simplified.df",'rb') as infile:
         df_mapbox_routes_test = pickle.load(infile)
 
     with open("files/"+project_folder+"/data_processed/observations_matched_simplified.df",'rb') as infile:
@@ -547,16 +529,15 @@ if __name__ == "__main__":
         
         
     if(dataset == "train"):
-        tab_num_routes = np.arange(df_simplified.iloc[-1]["route_num"]).tolist()
+        tab_num_routes = np.arange(df_simplified.iloc[-1]["route_num"]+1).tolist()
         for i in dict_cluster[-1]:
             tab_num_routes.remove(i)
-        for i in tab_num_test:   
+        for i in tab_num_test:  
             tab_num_routes.remove(i)
             
         print("Using the training dataset of",len(tab_num_routes),"tracks... Global metric :", global_metric)
         print("===============================")
     else:
-        dataset == "test"
         tab_num_routes = tab_num_test
         for i in tab_num_test:
             if i not in dict_cluster[tab_clusters[i]]:
@@ -590,17 +571,15 @@ if __name__ == "__main__":
                                                         
     df_computed = pd.DataFrame(columns=["lat", "lon", "route_num"])
 
+    print("SHORTEST PATHS :")
+
     for i, num_route in enumerate(tab_num_routes):
         print("\rRoute {}/{}".format(i, len(tab_num_routes)-1), end="")
 
         df_route_tested = df_simplified[df_simplified["route_num"]==num_route]
         d_point = df_route_tested.iloc[0].tolist()[:2]
         f_point = df_route_tested.iloc[-1].tolist()[:2]
-        print(d_point, f_point)
         df_route, tab_route_voxels, coeff_simplified = create_path_compute_distance(d_point, f_point, df_route_tested, tree, G_base, nodes, global_metric)
-        if(num_route == 1):
-            print(df_route_tested)
-            print(df_route)
         tab_coeff_simplified.append(min(coeff_simplified))
         dict_tab_route_voxels[num_route] = tab_route_voxels
         df_route["route_num"]= num_route
@@ -610,7 +589,7 @@ if __name__ == "__main__":
     print("===============================")
         
         
-    ''''tab_mean_results_base.append(sum(tab_coeff_simplified)/len(tab_coeff_simplified))
+    tab_mean_results_base.append(sum(tab_coeff_simplified)/len(tab_coeff_simplified))
     tab_boxplot.append(tab_coeff_simplified)
 
     tab_coeff_modified_mapbox = main_mapbox(global_metric)
@@ -630,7 +609,7 @@ if __name__ == "__main__":
     tab_coeff_modified_oracle = main_clusters_full_predict(global_metric, deviation)
 
     tab_mean_results_base.append(sum(tab_coeff_modified_oracle)/len(tab_coeff_modified_oracle))
-    tab_boxplot.append(tab_coeff_modified_oracle)'''
+    tab_boxplot.append(tab_coeff_modified_oracle)
 
 
     tab_coeff_modified_NN = main_clusters_NN(dict_tab_route_voxels, df_computed, global_metric, deviation)

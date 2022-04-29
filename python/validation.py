@@ -10,11 +10,9 @@ import python.data as data
 
 def find_cluster(route, network, voxels_frequency, dict_voxels, clustering, df_temp):
     nb_new_cluster = 0
-    print(route)
     tab_voxels_int = []
     nb_vox = 0
     for vox in route:
-        print(vox, dict_voxels[vox]["cluster"]+1)
         if(nb_vox%voxels_frequency==0):
             vox_str = vox.split(";")
             vox_int = [int(vox_str[0]), int(vox_str[1])]
