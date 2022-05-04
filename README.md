@@ -28,7 +28,7 @@ The code is configured for `monresovelo` and has already been executed for it, w
 
 4. `main.py` : uses all the previously created files to applicate our method and generates the graphs that we show as results in the paper.
 
-Warning : When generating the mapbox routes, `data_creation.ipynb` needs a token to access the Mapbox API. Create a free account on [their website](https://www.mapbox.com/) and replace the `token` variable in the notebook by your token.
+<font color='red'> <b>Warning :</b></font> When generating the mapbox routes, `data_creation.ipynb` needs a token to access the Mapbox API. Create a free account on [their website](https://www.mapbox.com/) and replace the `token` variable in the notebook by your token.
 
 ## Using your own data
 
