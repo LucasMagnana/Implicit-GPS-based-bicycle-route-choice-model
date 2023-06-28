@@ -220,10 +220,8 @@ def generate_voxels(df, starting, ending, bikepath=False):
 
             vox_int = find_voxel_int(p1) #find the start voxel
             vox_final_int = find_voxel_int(p2) #find the final voxel
-
             #while the final voxel has not been reached
             while(vox_int[0] != vox_final_int[0] or vox_int[1] != vox_final_int[1]):
-
                 vox_float = [vox_int[0]*10**(-n_voxel-1), vox_int[1]*10**(-n_voxel-1)] #transform the vox into real points
                 
                 key = str(int(vox_int[0]))+";"+str(int(vox_int[1])) #save the voxel
@@ -264,10 +262,15 @@ def generate_voxels(df, starting, ending, bikepath=False):
                 intersection_lat_distance = math.sqrt((p1[0]-intersection_lat[0])**2+(p1[1]-intersection_lat[1])**2)
 
                 #find the shorter distance then go to the next voxel using the orientation of the line
-                if(intersection_lat_distance<=intersection_lon_distance): 
-                    vox_int[0] += lat_orientation
-                if(intersection_lon_distance<=intersection_lat_distance): 
+                if(vox_int[0] == vox_final_int[0]):
                     vox_int[1] += lon_orientation
+                elif(vox_int[1] == vox_final_int[1]):
+                    vox_int[0] += lat_orientation
+                else:
+                    if(intersection_lat_distance<=intersection_lon_distance): 
+                        vox_int[0] += lat_orientation
+                    if(intersection_lon_distance<=intersection_lat_distance): 
+                        vox_int[1] += lon_orientation
                     
             key = str(int(vox_int[0]))+";"+str(int(vox_int[1])) #end of the while loop, save the last voxel
             if key in dict_vox:
